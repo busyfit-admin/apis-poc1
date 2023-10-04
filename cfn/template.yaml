@@ -1,0 +1,77 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: POC AWS CloudFormation with API gateway resources.
+
+
+Resources: 
+
+  # API gateway 
+  ProductFeedGatewayApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: "api-poc"
+      OpenApiVersion: '2.0'
+      EndpointConfiguration:
+        Type: REGIONAL
+      DefinitionBody:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: '../swagger-docs/poc-service-api.yaml'
+      MethodSettings:
+        - ResourcePath: '/*'
+          HttpMethod: '*'
+          DataTraceEnabled: true
+          LoggingLevel: INFO
+          MetricsEnabled: true
+          ThrottlingRateLimit: 100
+          ThrottlingBurstLimit: 100
+      # Auth:
+      #   ApiKeyRequired: true
+      TracingEnabled: true
+
+
+  ExampleLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: "Example Lambda to print request data"
+      Role: !GetAtt ExampleLambdaRole.Arn
+      Handler: bootstrap
+      Runtime: provided.al2
+      Architectures:
+        - x86_64
+      Timeout: 300
+      CodeUri: ../lambdas/example-lambda/
+      Tracing: Active
+      Environment:
+        Variables:
+          Environment: "api-poc"  
+
+  ExampleLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub example-lambda-role-api-poc
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaExecution
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricData
+                Resource: '*'
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSXRayDaemonWriteAccess
+        
