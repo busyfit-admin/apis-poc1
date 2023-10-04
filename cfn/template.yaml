@@ -72,8 +72,8 @@ Resources:
   
   ExampleAPIGatewayUsagePlan:
     Type: 'AWS::ApiGateway::UsagePlan'
-    # Adding ProductFeedGatewayApiStage in order to create UsagePlan after stage is created
-    # referring to ProductFeedGatewayApiStage (<api-name>Stage) which is the default name creation for stage in AWS
+    # Adding ExampleAPIGatewayStage in order to create UsagePlan after stage is created
+    # referring to ExampleAPIGatewayStage (<api-name>Stage) which is the default name creation for stage in AWS
     DependsOn:
       - ExampleAPIGatewayStage
     Properties:
@@ -157,7 +157,7 @@ Resources:
   ExampleLambdaRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub example-lambda-role-api-poc
+      RoleName: !Sub example-lambda-role-api-${Environment}
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
