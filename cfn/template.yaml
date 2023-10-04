@@ -2,14 +2,54 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: POC AWS CloudFormation with API gateway resources.
 
+Parameters:
+  Environment:
+    Type: String
+    Description: The runtime environment of this stack
+  MapBurstLimit:
+    Type: Number
+    Default: 100
+  MapRateLimit:
+    Type: Number
+    Default: 100
+  MapThrottlingLimit:
+    Type: Number
+    Default: 100
+  MapThrottlingBurstLimit:
+    Type: Number
+    Default: 100
+
+Conditions:
+# If the build is not on Deployment branch this condition is true.
+  IsTestBuild: !Not
+    - !Or
+      - !Equals [ !Ref Environment, "dev" ]
+      - !Equals [ !Ref Environment, "uat" ]
+
+Mappings:
+  AccountMappings: 
+    '231252353945': # dev
+        APIHostedZoneId: Z06139472BA0XYSWA4JJ4
+        APIDomainName: example-api.testrewardsapp.com
 
 Resources: 
 
   # API gateway 
-  ProductFeedGatewayApi:
+  ExampleAPIGateway:
     Type: AWS::Serverless::Api
     Properties:
-      StageName: "api-poc"
+      StageName: !Ref Environment
+      Domain:
+        CertificateArn: !Ref APIDomainACM
+        DomainName: !If
+          - IsTestBuild
+          - !Sub
+                - ${Environment}.${DomainName}
+                - DomainName: !FindInMap [AccountMappings, !Ref 'AWS::AccountId', APIDomainName]
+          - !FindInMap [AccountMappings, !Ref 'AWS::AccountId', APIDomainName]
+        EndpointConfiguration: REGIONAL
+        Route53:
+          HostedZoneId: !FindInMap [AccountMappings, !Ref 'AWS::AccountId', APIHostedZoneId]
       OpenApiVersion: '2.0'
       EndpointConfiguration:
         Type: REGIONAL
@@ -24,11 +64,78 @@ Resources:
           DataTraceEnabled: true
           LoggingLevel: INFO
           MetricsEnabled: true
-          ThrottlingRateLimit: 100
-          ThrottlingBurstLimit: 100
-      # Auth:
-      #   ApiKeyRequired: true
-      TracingEnabled: true
+          ThrottlingRateLimit: !Ref MapThrottlingLimit
+          ThrottlingBurstLimit: !Ref MapThrottlingBurstLimit
+      Auth:
+        ApiKeyRequired: true
+      TracingEnabled: true  
+  
+  ExampleAPIGatewayUsagePlan:
+    Type: 'AWS::ApiGateway::UsagePlan'
+    # Adding ProductFeedGatewayApiStage in order to create UsagePlan after stage is created
+    # referring to ProductFeedGatewayApiStage (<api-name>Stage) which is the default name creation for stage in AWS
+    DependsOn:
+      - ExampleAPIGatewayStage
+    Properties:
+      ApiStages:
+        - ApiId: !Ref ExampleAPIGateway
+          Stage: !Ref Environment
+      Description: Usage plan for this API
+      # Update throttle settings based on env
+      Throttle:
+        RateLimit: !Ref MapBurstLimit
+        BurstLimit: !Ref MapRateLimit
+
+  ExampleAPIGatewayUsagePlanKey:
+    Type: 'AWS::ApiGateway::UsagePlanKey'
+    DependsOn:
+      - ExampleAPIGatewayStage
+    Properties:
+      KeyId: !Ref ExampleAPIGatewayApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref ExampleAPIGatewayUsagePlan
+
+  ExampleAPIGatewayApiKey:
+    Type: 'AWS::ApiGateway::ApiKey'
+    DependsOn:
+      - ExampleAPIGatewayUsagePlan
+      - ExampleAPIGatewayStage
+    Properties:
+      Enabled: true
+      StageKeys:
+        - RestApiId: !Ref ExampleAPIGateway
+          StageName: !Ref Environment
+      Value: !Join ['', ['{{resolve:secretsmanager:', !Ref GenerateSecretKey, ':SecretString:apikey}}']]
+
+  GenerateSecretKey:
+    Type: AWS::SecretsManager::Secret
+    Properties:
+      Name: !Sub SecretKeyExampleAPI/${Environment}
+      GenerateSecretString:
+        SecretStringTemplate: '{"username": "getapikey"}'
+        ExcludePunctuation: true
+        GenerateStringKey: 'apikey'
+        PasswordLength: 21
+
+
+  APIDomainACM:
+    Type: AWS::CertificateManager::Certificate
+    Properties:
+      DomainName: !If
+        - IsTestBuild
+        - !Sub
+              - ${Environment}.${DomainName}
+              - DomainName: !FindInMap [AccountMappings, !Ref 'AWS::AccountId', APIDomainName]
+        - !FindInMap [AccountMappings, !Ref 'AWS::AccountId', APIDomainName]
+      ValidationMethod: DNS
+      DomainValidationOptions:
+        - DomainName: !If
+            - IsTestBuild
+            - !Sub
+                  - ${Environment}.${DomainName}
+                  - DomainName: !FindInMap [AccountMappings, !Ref 'AWS::AccountId', APIDomainName]
+            - !FindInMap [AccountMappings, !Ref 'AWS::AccountId', APIDomainName]
+          HostedZoneId: !FindInMap [AccountMappings, !Ref 'AWS::AccountId', APIHostedZoneId]
 
 
   ExampleLambda:
