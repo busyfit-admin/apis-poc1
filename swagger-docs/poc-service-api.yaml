@@ -1,0 +1,93 @@
+swagger: "2.0"
+info:
+  title:
+    Fn::Sub: ${AWS::StackName}
+  description: API example poc
+  version: 1.0.1
+x-amazon-apigateway-request-validators:
+  all:
+    validateRequestBody: true
+x-amazon-apigateway-request-validator: all
+paths:
+  /v1/example-api-poc:
+    post:
+      summary: example api poc
+      consumes:
+        - application/json
+      produces:
+        - application/json
+      parameters:
+        - in: body
+          name: example_request_body
+          required: true
+          schema:
+            $ref: '#/definitions/examplerequestbody'
+      x-amazon-apigateway-integration:
+        httpMethod: POST
+        passthroughBehavior: when_no_match
+        type: aws_proxy
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${ExampleLambda.Arn}/invocations
+        responses:
+          default:
+            statusCode: '200'
+      responses:
+        "200":
+          description: "200 - OK"
+          schema:
+            $ref: "#/definitions/exampleresponse"
+        "400":
+          description: "Bad Request Exception"
+          schema:
+            $ref: "#/definitions/errorbody"
+        "401":
+          description: "Unauthorized Exception"
+          schema:
+            $ref: "#/definitions/errorbody"
+        "404":
+          description: "Not Found"
+          schema:
+            $ref: "#/definitions/errorbody"
+        "500":
+          description: "Internal Server Error"
+          schema:
+            $ref: "#/definitions/errorbody"
+      security:
+        - api_key: []
+securityDefinitions:
+  api_key:
+    type: "apiKey"
+    name: "x-api-key"
+    in: "header"
+definitions:
+  examplerequestbody:
+    description: Example request body of POST API
+    type: object
+    required:
+      - exampleInput1
+      - exampleInput2
+    properties:
+      exampleInput1:
+        type: string
+        description: Example description of input1
+      exampleInput2:
+        type: string
+        description: Example description of input2
+  exampleresponse:
+    description: Example response of the API
+    type: object
+    required:
+      - exampleRequiredField
+    properties:
+      exampleRequiredField:
+        type: string
+        description: example description of exampleRequiredField
+      field2:
+        type: string
+      field3:
+        type: object
+  errorbody:
+    type: object
+    properties:
+      errorText:
+        type: string
