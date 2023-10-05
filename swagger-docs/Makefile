@@ -4,6 +4,8 @@ test:
 local:
 	
 build:
+
+deploy:
 	
 update:
 	
