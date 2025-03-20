@@ -1,0 +1,9 @@
+{
+    "dependencies": {
+        "aws-lambda": "latest"
+    },
+    "devDependencies": {
+        "@types/aws-lambda": "^8.10.147",
+        "esbuild": "^0.25.1"
+    }
+}

@@ -143,16 +143,16 @@ Resources:
     Properties:
       Description: "Example Lambda to print request data"
       Role: !GetAtt ExampleLambdaRole.Arn
-      Handler: bootstrap
-      Runtime: provided.al2
+      Handler: handler.handler    # This should be the name of the handler function in the compiled JS file
+      Runtime: nodejs20.x        # Use a Node.js runtime version (can be nodejs14.x, nodejs16.x, nodejs18.x)
       Architectures:
         - x86_64
       Timeout: 300
-      CodeUri: ../lambdas/example-lambda/
+      CodeUri: ../lambdas/example-lambda/dist/handler.zip  # Path to the ZIP file containing compiled JavaScript code
       Tracing: Active
       Environment:
         Variables:
-          Environment: "api-poc"  
+          Environment: "api-poc"
 
   ExampleLambdaRole:
     Type: AWS::IAM::Role

@@ -1,15 +1,15 @@
 test: 
-	go vet
-	env=0.6 go test -cover	
+		
 
 local:
-	GOARCH=amd64 GOOS=linux go build -tags lambda.norpc -o bootstrap
+	npm install -D @types/aws-lambda esbuild
 
 build:
-	GOARCH=amd64 GOOS=linux go build -tags lambda.norpc -o bootstrap
+	rm -rf dist
+	npx esbuild handler.ts --bundle --minify --sourcemap --platform=node --target=es2020 --outfile=dist/handler.js
 
-update:
-	go get -u
-	go mod tidy
+	cd dist && zip -r handler.zip handler.js*
 
-.PHONY: test build update
+
+
+.PHONY: test build local
